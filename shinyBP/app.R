@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-
+library(tidyverse)
 library(shiny)
 library(DT)
 library(dplyr)
@@ -31,17 +31,21 @@ fields <- c("Date", "Blood Pressure Systolic", "Blood Pressure Diastolic",'Weigh
 shinyApp(
   ui = fluidPage(
     theme = shinytheme("flatly"),
-    titlePanel("Embed a Google Form"),
+    titlePanel("BP Data Entry"),
     sidebarLayout(
       sidebarPanel(
         # h6(a("Click Here to See Code on Github",
         #      href="https://github.com/jennybc/googlesheets/tree/master/inst/shiny-examples/04_embedded-google-form",
         #      target="_blank")),
-        htmlOutput("googleForm")
+        htmlOutput("googleForm"),
+        width=6
       ),
       mainPanel(
+        h2("Data Table"),
         DT::dataTableOutput("googleFormData"),
-        actionButton("refresh", "Refresh Sheet")
+        actionButton("refresh", "Refresh Sheet"),
+        h2("Time Series Plot"),
+        plotOutput("plot")
       )
     )
   ),
@@ -74,7 +78,36 @@ shinyApp(
         arrange(Date)
 
       DT::datatable(ss_dat)
-    })#output$googleFOrmData
+    })#output$googleFormData
+    
+    pData<-reactive({
+      tbl<-gs_read(ss) %>%
+        mutate(Date = Date %>%
+                 as.Date(format = "%m/%d/%Y")) %>%
+        select(Date, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
+        arrange(Date)
+      
+      return(tbl)
+      
+    })#pData
+    
+    output$plot<-renderPlot({
+      g<-ggplot()+
+        geom_col(data=pData(),aes(Date,Weight,fill="Weight"),alpha=.5)+
+        geom_point(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"),size = 3)+
+        geom_line(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"))+
+        geom_point(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"),size = 3)+
+        geom_line(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"))+
+        scale_fill_manual(values=c('black'))+
+        theme(legend.position="bottom",
+              legend.title=element_blank())+
+        labs(x="Date",y="Value")
+      return(g)
+      
+    })
+    
+    
+    
   }#server
 )#end of app
 

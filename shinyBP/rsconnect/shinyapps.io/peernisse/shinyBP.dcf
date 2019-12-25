@@ -1,0 +1,12 @@
+name: shinyBP
+title: shinyBP
+username:
+account: peernisse
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1618764
+bundleId: 2691077
+url: https://peernisse.shinyapps.io/shinyBP/
+when: 1577301377.68717
+asMultiple: FALSE
+asStatic: FALSE
