@@ -1,4 +1,4 @@
-#
+
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
 #
@@ -7,44 +7,76 @@
 #    http://shiny.rstudio.com/
 #
 
+
 library(shiny)
+library(DT)
+library(dplyr)
+library(shinythemes)
+library(googlesheets)
+#source("helpers.R")
 
-# Define UI for application that draws a histogram
-ui <- fluidPage(
-   
-   # Application title
-   titlePanel("Old Faithful Geyser Data"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
+
+## ======================
+googleform_embed_link <- "https://docs.google.com/forms/d/e/1FAIpQLSf3buc5st72mVYAQL9OuQZpR0hqdPHPenLcnhAF2dTIhqkj6Q/viewform?embedded=true"
+#googleform_data_url <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vQxeAnH_IXgGLeTw3QcRiE_ua79Zs5nhKgjCqQgpSGDBXnqQfAFzfLoLxHiRD6w_88Wp7LFyW57MQFT/pubhtml"
+
+googleform_data_url <- "https://docs.google.com/spreadsheets/d/1vc3shTj6WqyrPTIbwNYOlijL50ih5Vk-5KjTfS_pVPY/edit?usp=sharing"
+
+## ======================
+
+# Define the fields we want to save from the form
+fields <- c("Date", "Blood Pressure Systolic", "Blood Pressure Diastolic",'Weight','Exercise Minutes','Drinks')
+
+# Shiny app with 6 fields that the user can submit data for
+shinyApp(
+  ui = fluidPage(
+    theme = shinytheme("flatly"),
+    titlePanel("Embed a Google Form"),
+    sidebarLayout(
       sidebarPanel(
-         sliderInput("bins",
-                     "Number of bins:",
-                     min = 1,
-                     max = 50,
-                     value = 30)
+        # h6(a("Click Here to See Code on Github",
+        #      href="https://github.com/jennybc/googlesheets/tree/master/inst/shiny-examples/04_embedded-google-form",
+        #      target="_blank")),
+        htmlOutput("googleForm")
       ),
-      
-      # Show a plot of the generated distribution
       mainPanel(
-         plotOutput("distPlot")
+        DT::dataTableOutput("googleFormData"),
+        actionButton("refresh", "Refresh Sheet")
       )
-   )
-)
+    )
+  ),
+  
+  
+  ########SERVER SIDE CODE##########################################S
+  
+  
+  server = function(input, output, session) {
+    
+    ss <- gs_url(googleform_data_url, lookup = FALSE, visibility = "public")
+    
+    output$googleForm <- renderUI({
+      tags$iframe(id = "googleform",
+                  src = googleform_embed_link,
+                  width = 640,
+                  height = 1178,
+                  frameborder = 0,
+                  marginheight = 0,
+                  marginwidth = 0)
+    })
+    
+    
+    output$googleFormData <- DT::renderDataTable({
+      input$refresh
+      ss_dat <- gs_read(ss) %>%
+        mutate(Date = Date %>%
+                 as.Date(format = "%m/%d/%Y")) %>%
+        select(Date, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
+        arrange(Date)
 
-# Define server logic required to draw a histogram
-server <- function(input, output) {
-   
-   output$distPlot <- renderPlot({
-      # generate bins based on input$bins from ui.R
-      x    <- faithful[, 2] 
-      bins <- seq(min(x), max(x), length.out = input$bins + 1)
-      
-      # draw the histogram with the specified number of bins
-      hist(x, breaks = bins, col = 'darkgray', border = 'white')
-   })
-}
+      DT::datatable(ss_dat)
+    })#output$googleFOrmData
+  }#server
+)#end of app
 
-# Run the application 
-shinyApp(ui = ui, server = server)
+
 
