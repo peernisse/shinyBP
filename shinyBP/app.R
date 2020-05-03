@@ -44,7 +44,7 @@ shinyApp(
         h2("Data Table"),
         DT::dataTableOutput("googleFormData"),
         actionButton("refresh", "Refresh Sheet"),
-        h2("Time Series Plot"),
+        h2("Time Series Daily Average Values (Last 60 days)"),
         plotOutput("plot")
       )
     )
@@ -72,33 +72,44 @@ shinyApp(
     output$googleFormData <- DT::renderDataTable({
       input$refresh
       ss_dat <- gs_read(ss) %>%
-        mutate(Date = Date %>%
+        mutate(Date = Timestamp %>%
                  as.Date(format = "%m/%d/%Y")) %>%
-        select(Date, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
-        arrange(Date)
+        select(Timestamp, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
+        arrange(Timestamp)
 
       DT::datatable(ss_dat)
     })#output$googleFormData
     
     pData<-reactive({
       tbl<-gs_read(ss) %>%
-        mutate(Date = Date %>%
+        mutate(Date = Timestamp %>%
                  as.Date(format = "%m/%d/%Y")) %>%
         select(Date, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
-        arrange(Date)
+        gather(PARAMETER,RESULT,2:6) %>% 
+        filter(Date >= -60+Sys.Date()) %>% 
+        group_by(Date,PARAMETER) %>% 
+        summarize(
+          RESULT = mean(RESULT)
+          
+        ) %>% 
+        arrange(Date) %>% 
+        filter(PARAMETER %in% c('Blood Pressure Systolic','Blood Pressure Diastolic' ,'Weight')) %>% 
+        as.data.frame(.)
       
       return(tbl)
       
     })#pData
     
     output$plot<-renderPlot({
-      g<-ggplot()+
-        geom_col(data=pData(),aes(Date,Weight,fill="Weight"),alpha=.5)+
-        geom_point(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"),size = 3)+
-        geom_line(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"))+
-        geom_point(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"),size = 3)+
-        geom_line(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"))+
-        scale_fill_manual(values=c('black'))+
+      g<-ggplot(pData(),aes(Date,RESULT,color=PARAMETER))+
+        geom_point(size=4)+
+        geom_line()+
+        # geom_col(data=pData(),aes(Date,Weight,fill="Weight"),alpha=.5)+
+        # geom_point(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"),size = 3)+
+        # geom_line(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"))+
+        # geom_point(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"),size = 3)+
+        # geom_line(data=pData(),aes(Date,`Blood Pressure Diastolic`,color="Blood Pressure Diastolic"))+
+        # scale_fill_manual(values=c('black'))+
         theme(legend.position="bottom",
               legend.title=element_blank())+
         labs(x="Date",y="Value")
