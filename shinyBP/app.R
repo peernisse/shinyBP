@@ -1,6 +1,7 @@
 
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
+#'THis spp tracks blood pressure and weight
+#'It uses google sheets for persistent storage and google forms
+#'for the input form
 #
 # Find out more about building applications with Shiny here:
 #
@@ -44,7 +45,9 @@ shinyApp(
         h2("Data Table"),
         DT::dataTableOutput("googleFormData"),
         actionButton("refresh", "Refresh Sheet"),
-        h2("Time Series Daily Average Values (Last 60 days)"),
+        h2("Time Series Daily Average Values"),
+        h3('Select Number of Days Back to Display'),
+        sliderInput('ndays','',0,365,value=60,step=5),
         plotOutput("plot")
       )
     )
@@ -74,22 +77,30 @@ shinyApp(
       ss_dat <- gs_read(ss) %>%
         mutate(Date = Timestamp %>%
                  as.Date(format = "%m/%d/%Y")) %>%
+        arrange(Timestamp) %>% 
         select(Timestamp, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
         arrange(Timestamp)
+      
 
       DT::datatable(ss_dat)
     })#output$googleFormData
+    
+    
     
     pData<-reactive({
       tbl<-gs_read(ss) %>%
         mutate(Date = Timestamp %>%
                  as.Date(format = "%m/%d/%Y")) %>%
         select(Date, `Blood Pressure Systolic`,`Blood Pressure Diastolic` ,`Weight`,`Exercise Minutes`,Drinks) %>%
+        filter(!is.na(`Blood Pressure Systolic`) | `Blood Pressure Systolic` != '') %>% 
         gather(PARAMETER,RESULT,2:6) %>% 
-        filter(Date >= -60+Sys.Date()) %>% 
+        filter(Date >= Sys.Date()-input$ndays) %>% 
+        #filter(Date >= -60+Sys.Date()) %>% 
         group_by(Date,PARAMETER) %>% 
         summarize(
-          RESULT = mean(RESULT)
+          RESULT2 = mean(RESULT),
+          MIN = min(RESULT),
+          MAX = max(RESULT)
           
         ) %>% 
         arrange(Date) %>% 
@@ -101,9 +112,12 @@ shinyApp(
     })#pData
     
     output$plot<-renderPlot({
-      g<-ggplot(pData(),aes(Date,RESULT,color=PARAMETER))+
-        geom_point(size=4)+
+      g<-ggplot(pData(),aes(Date,RESULT2,color=PARAMETER))+
+        geom_errorbar(aes(x=Date,ymin=MIN,ymax=MAX),width=0.2)+
         geom_line()+
+        geom_point(size=4)+
+        
+        
         # geom_col(data=pData(),aes(Date,Weight,fill="Weight"),alpha=.5)+
         # geom_point(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"),size = 3)+
         # geom_line(data=pData(),aes(Date,`Blood Pressure Systolic`,color="Blood Pressure Systolic"))+
