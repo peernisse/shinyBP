@@ -115,7 +115,8 @@ shinyApp(
       g<-ggplot(pData(),aes(Date,RESULT2,color=PARAMETER))+
         geom_errorbar(aes(x=Date,ymin=MIN,ymax=MAX),width=0.2)+
         geom_line()+
-        geom_point(size=4)+
+        geom_point(size=4) +
+        scale_y_continuous(limits = c(50,230),breaks = seq(50,230,by = 10))+
         
         
         # geom_col(data=pData(),aes(Date,Weight,fill="Weight"),alpha=.5)+
